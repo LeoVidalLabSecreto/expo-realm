@@ -1,4 +1,4 @@
-import { Image, StyleSheet, TextInput, Button } from "react-native";
+import { Image, StyleSheet, TextInput, Button, Alert } from "react-native";
 
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -19,25 +19,39 @@ export default function HomeScreen() {
     console.log(takeRealm, "take realm data");
   }
 
+  function waitingConnection() {
+    while (!netInfo.isConnected) {
+      return;
+    }
+    if (netInfo.isConnected && data) {
+      Alert.alert("Send to database data");
+      console.log("you are connected", data);
+    }
+  }
+
   function handleSubmit() {
-    netInfo.isWifiEnabled = false;
     try {
-      !netInfo.isConnected
-        ? realm.write(() => {
-            realm.create(
-              "InputRealm",
-              InputRealm.generate({
-                description: data,
-              })
-            );
-          })
-        : console.log("you are connected", data);
+      if (netInfo.isConnected) {
+        realm.write(() => {
+          realm.create(
+            "InputRealm",
+            InputRealm.generate({
+              description: data,
+            })
+          );
+        });
+        setData("");
+      } else {
+        setData(data);
+      }
     } catch (error) {
       console.log("Error", error);
     }
   }
+
   useEffect(() => {
     fetchInput();
+    waitingConnection();
   }, []);
 
   return (
