@@ -1,4 +1,11 @@
-import { Image, StyleSheet, TextInput, Button, Alert } from "react-native";
+import {
+  Image,
+  StyleSheet,
+  TextInput,
+  Button,
+  Alert,
+  Text,
+} from "react-native";
 
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -11,21 +18,36 @@ import { useNetInfo } from "@react-native-community/netinfo";
 
 export default function HomeScreen() {
   const [data, setData] = useState("");
+  const [dataOffline, setDataOffline] = useState<string[]>([]);
+
   const realm = useRealm();
   const takeRealm = useQuery(InputRealm);
   const netInfo = useNetInfo();
 
   function fetchInput() {
-    console.log(takeRealm, "take realm data");
+    return takeRealm;
   }
 
-  function waitingConnection() {
-    while (!netInfo.isConnected) {
-      return;
-    }
-    if (netInfo.isConnected && data) {
-      Alert.alert("Send to database data");
-      console.log("you are connected", data);
+  function clearRealm() {
+    realm.write(() => {
+      realm.deleteAll();
+    });
+  }
+
+  function synchronizeRealm() {
+    if (netInfo.isConnected && dataOffline) {
+      realm.write(() => {
+        dataOffline.forEach((item) => {
+          realm.create(
+            "InputRealm",
+            InputRealm.generate({
+              description: item,
+            })
+          );
+        });
+      });
+      setDataOffline([]);
+      setData("");
     }
   }
 
@@ -41,8 +63,11 @@ export default function HomeScreen() {
           );
         });
         setData("");
+        Alert.alert("Insert database storage");
       } else {
-        setData(data);
+        setDataOffline((prevData) => [...prevData, data]);
+        setData("");
+        Alert.alert("Insert in local storage");
       }
     } catch (error) {
       console.log("Error", error);
@@ -51,8 +76,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchInput();
-    waitingConnection();
-  }, []);
+  }, [netInfo.isConnected]);
 
   return (
     <ParallaxScrollView
@@ -65,7 +89,7 @@ export default function HomeScreen() {
       }
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText type="title">Welcome Leandro!</ThemedText>
         <HelloWave />
       </ThemedView>
       <TextInput
@@ -75,6 +99,21 @@ export default function HomeScreen() {
         onChangeText={setData}
       />
       <Button title="send" onPress={() => handleSubmit()} />
+      {fetchInput().map((item) => {
+        return <Text>{item.description}</Text>;
+      })}
+      <Button title="clear Realm" onPress={() => clearRealm()} />
+      <Button
+        disabled={!netInfo.isConnected}
+        title={"synchronize"}
+        onPress={() => synchronizeRealm()}
+      />
+      {!netInfo.isConnected && (
+        <Text>
+          You are offline, when you have connection, synchronization will be
+          enabled.
+        </Text>
+      )}
     </ParallaxScrollView>
   );
 }
